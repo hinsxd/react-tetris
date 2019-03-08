@@ -13,11 +13,9 @@ type Piece = {
 	color: string;
 	rotationDatam: RotationData[];
 };
-type Pieces = {
-	[x: string]: Piece;
-};
+type Pieces = { [key in PieceType]: Piece };
 
-type Board = (null | string)[][];
+type Board = (null | PieceType)[][];
 function rotCCW90<T>(arr: T[][]): T[][] {
 	return _.zip(...arr.reverse()) as T[][];
 }
@@ -35,9 +33,9 @@ function rotated<T>(arr: T[][], rotation: number): T[][] {
 		case 1:
 			return rotCW90(arr);
 		case 2:
-			return rotCW90(rotCW90(arr));
+			return rot180(arr);
 		case 3:
-			return rotCW90(rotCW90(rotCW90(arr)));
+			return rotCCW90(arr);
 		default:
 			return arr;
 	}
@@ -68,13 +66,6 @@ const getGridPosAfterRotateOffset = (
 	const { offsets: fromOffsets } = rotationDatum[fromRotation];
 	const { offsets: toOffsets } = rotationDatum[toRotation];
 	const [row, col] = gridPos;
-	console.log(
-		'col offset change',
-		fromOffsets[offset],
-		toOffsets[offset],
-		'offset:',
-		offset
-	);
 	return [
 		row + fromOffsets[offset][0] - toOffsets[offset][0],
 		col + fromOffsets[offset][1] - toOffsets[offset][1]
@@ -112,14 +103,17 @@ const getCellsFromRotationOffset = (
 	toRotation: number,
 	offset: number
 ) => {
-	const { offsets: baseOffsets } = rotationDatum[0];
-	const { offsets: fromOffsets } = rotationDatum[fromRotation];
-	const { offsets: toOffsets, pos } = rotationDatum[toRotation];
+	const rotationOffset = getRotationOffset(
+		rotationDatum,
+		fromRotation,
+		toRotation,
+		offset
+	);
+	const { pos } = rotationDatum[toRotation];
 	const [row, col] = gridPos;
-
 	return pos.map(cell => [
-		cell[0] + fromOffsets[offset][0] - toOffsets[offset][0] + row,
-		cell[1] + fromOffsets[offset][1] - toOffsets[offset][1] + col
+		cell[0] + rotationOffset[0] + row,
+		cell[1] + rotationOffset[1] + col
 	]);
 };
 
@@ -221,6 +215,8 @@ const Pieces: Pieces = {
 	}
 };
 
+const randomPiece = (): PieceType => _.sample(Object.keys(Pieces)) as PieceType;
+
 const initialBoard: Board = Array(24)
 	.fill(0)
 	.map(row =>
@@ -230,22 +226,25 @@ const initialBoard: Board = Array(24)
 	);
 const App: React.FC = () => {
 	const [board, setBoard] = useState(initialBoard);
+	const [level, setLevel] = useState(0);
+	const [score, setStore] = useState(0);
 	const boardRef = useRef<HTMLDivElement>(null);
 	const [dead, setDead] = useState(false);
-	const [activePieceType, setActivePieceType] = useState<PieceType>(_.sample(
-		Object.keys(Pieces)
-	) as PieceType);
+	const [activePieceType, setActivePieceType] = useState<PieceType>(
+		randomPiece()
+	);
 	// const [activePieceType, setActivePieceType] = useState<PieceType>('I');
 	const [[row, col], setPosition] = useState([0, 2]);
 	const [rotation, setRotation] = useState(0);
 
+	const [isRunning, setIsRunning] = useState(true);
 	const [delay, setDelay] = useState<number | null>(300);
 	useEffect(() => {
 		boardRef.current!.focus();
 	}, []);
 
 	useEffect(() => {
-		if (board[0].some(cell => cell !== null)) {
+		if (board[3].some(cell => cell !== null)) {
 			setDead(true);
 			setDelay(null);
 		}
@@ -257,7 +256,6 @@ const App: React.FC = () => {
 					.fill(0)
 					.map(col => null)
 			);
-		console.log(newBoard);
 		if (newBoard.length < 24) setBoard([...emptyRows, ...newBoard]);
 	}, [board]);
 
@@ -368,8 +366,8 @@ const App: React.FC = () => {
 		}
 	};
 	return (
-		<div className="App">
-			<S.Board tabIndex={0} ref={boardRef} onKeyDown={handleKeyPress}>
+		<div className="App" tabIndex={0} ref={boardRef} onKeyDown={handleKeyPress}>
+			<S.Board>
 				{getCellsWithoutRotationOffset(
 					Pieces[activePieceType].rotationDatam,
 					[row, col],
@@ -385,7 +383,6 @@ const App: React.FC = () => {
 						}}
 					/>
 				))}
-
 				{board.map((row, rowIdx) =>
 					row.map(
 						(type, colIdx) =>

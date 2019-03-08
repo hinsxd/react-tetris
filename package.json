@@ -9,6 +9,7 @@
     "@types/styled-components": "^4.1.11",
     "@types/styled-system": "^3.2.2",
     "lodash": "^4.17.11",
+    "merge": "^1.2.1",
     "react": "^16.8.4",
     "react-dom": "^16.8.4",
     "react-scripts": "2.1.5",
