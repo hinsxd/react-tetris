@@ -1,18 +1,10 @@
-import React, { Component, useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import _ from 'lodash';
 import useInterval from './useInterval';
 import * as S from './styles';
 import './App.css';
+import { TetrominoType, Board, Position } from './types';
 import {
-	TetrominoType,
-	RotationData,
-	Piece,
-	TetrominoesType,
-	Board,
-	Position
-} from './types';
-import {
-	getGridPos,
 	getCellsFromRotationOffset,
 	getCellsWithoutRotationOffset,
 	getGridPosAfterRotateOffset,
@@ -31,7 +23,7 @@ const Terrain = React.memo(({ board }: { board: Board }) => (
 						<S.Cell
 							key={`${rowIdx}${colIdx}`}
 							cell={[rowIdx + 1, colIdx + 1]}
-							tetrominoType={type}
+							backgroundColor={Tetrominoes[type].color}
 						/>
 					)
 			)
@@ -39,57 +31,83 @@ const Terrain = React.memo(({ board }: { board: Board }) => (
 	</>
 ));
 
-const ActiveTetromino = ({
+const TetrominoCells = ({
 	cells,
-	activeTetrominoType
+	tetrominoType
 }: {
 	cells: Position[];
-	activeTetrominoType: TetrominoType;
-}) => (
-	<>
-		{cells.map(cell => (
-			<S.Cell
-				key={`${cell[0]}${cell[1]}`}
-				cell={cell}
-				tetrominoType={activeTetrominoType}
-			/>
-		))}
-	</>
-);
-
+	tetrominoType: TetrominoType;
+}) => {
+	return (
+		<>
+			{cells.map(cell => (
+				<S.Cell
+					key={`${cell[0]}${cell[1]}`}
+					cell={cell}
+					backgroundColor={Tetrominoes[tetrominoType].color}
+				/>
+			))}
+		</>
+	);
+};
+const newTetrominoPos = [0, 2];
 const App: React.FC = () => {
 	const [board, setBoard] = useState(initialBoard);
-	const [level, setLevel] = useState(0);
-	const [score, setStore] = useState(0);
+	const [level, setLevel] = useState(1);
+	const [highscore, setHighscore] = useState(0);
+	const [score, setScore] = useState(0);
+	const [rowsCleared, setRowsCleared] = useState(0);
 	const boardRef = useRef<HTMLDivElement>(null);
 	const [dead, setDead] = useState(false);
 	const [activeTetrominoType, setActiveTetrominoType] = useState<TetrominoType>(
 		randomPiece()
 	);
-	// const [activeTetrominoType, setActiveTetrominoType] = useState<TetrominoType>('I');
-	const [[row, col], setPosition] = useState([0, 2]);
+	const [nextTetrominoType, setNextTetrominoType] = useState<TetrominoType>(
+		randomPiece()
+	);
+	const [[row, col], setPosition] = useState(newTetrominoPos);
 	const [rotation, setRotation] = useState(0);
-
-	const [isRunning, setIsRunning] = useState(true);
-	const [delay, setDelay] = useState<number | null>(50);
+	const [isRunning, setIsRunning] = useState(false);
+	const [delay, setDelay] = useState<number | null>(150);
 	useEffect(() => {
 		boardRef.current!.focus();
 	}, []);
 
+	const start = () => {
+		setIsRunning(true);
+		boardRef.current!.focus();
+	};
+	const restart = () => {
+		setBoard(initialBoard);
+
+		setLevel(1);
+		setScore(0);
+		setRowsCleared(0);
+		setDead(false);
+		setRotation(0);
+		setPosition(newTetrominoPos);
+		setActiveTetrominoType(randomPiece());
+		setNextTetrominoType(randomPiece());
+	};
 	useEffect(() => {
 		if (board[3].some(cell => cell !== null)) {
 			setDead(true);
-			setDelay(null);
+			setIsRunning(false);
+			if (score > highscore) setHighscore(score);
 		}
 		const newBoard = board.filter(row => row.some(cell => cell === null));
 		const emptyRows = Array(24 - newBoard.length)
 			.fill(0)
-			.map(row =>
+			.map(() =>
 				Array(10)
 					.fill(0)
-					.map(col => null)
+					.map(() => null)
 			);
-		if (newBoard.length < 24) setBoard([...emptyRows, ...newBoard]);
+		if (emptyRows.length > 0) {
+			setBoard([...emptyRows, ...newBoard]);
+			setRowsCleared(rowsCleared + emptyRows.length);
+			setScore(score + 100 * 2 ** (emptyRows.length - 1));
+		}
 	}, [board]);
 
 	const rotateTo = (newRotation: number) => {
@@ -107,7 +125,7 @@ const App: React.FC = () => {
 					board
 				)
 			) {
-				setPosition(
+				setPosition(([row, col]) =>
 					getGridPosAfterRotateOffset(
 						Tetrominoes[activeTetrominoType].rotationDatam,
 						[row, col],
@@ -130,28 +148,28 @@ const App: React.FC = () => {
 		rotateTo((rotation + 1) % 4);
 	};
 
-	const moveTo = (row: number, col: number): boolean => {
+	const moveTo = (relRow: number, relCol: number): boolean => {
 		if (
 			placeable(
 				getCellsWithoutRotationOffset(
 					Tetrominoes[activeTetrominoType].rotationDatam,
-					[row, col],
+					[row + relRow, col + relCol],
 					rotation
 				),
 				board
 			)
 		) {
-			setPosition([row, col]);
+			setPosition(([row, col]) => [row + relRow, col + relCol]);
 			return true;
 		}
 		return false;
 	};
 
 	const moveLeft = () => {
-		moveTo(row, col - 1);
+		moveTo(0, -1);
 	};
 	const moveRight = () => {
-		moveTo(row, col + 1);
+		moveTo(0, 1);
 	};
 
 	const land = () => {
@@ -164,20 +182,22 @@ const App: React.FC = () => {
 			newBoard[cellRow - 1][cellCol - 1] = activeTetrominoType;
 		});
 		setBoard(newBoard);
-		setActiveTetrominoType(_.sample(Object.keys(Tetrominoes)) as TetrominoType);
-		setPosition([0, 3]);
+		setActiveTetrominoType(nextTetrominoType);
+		setNextTetrominoType(_.sample(Object.keys(Tetrominoes)) as TetrominoType);
+		setPosition(newTetrominoPos);
 		setRotation(0);
 	};
 
 	const drop = () => {
-		if (!moveTo(row + 1, col)) {
+		if (!moveTo(1, 0)) {
 			land();
 		}
 	};
 
-	useInterval(drop, delay);
+	useInterval(drop, isRunning ? delay : null);
 
 	const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
+		if (!isRunning) return;
 		switch (e.keyCode) {
 			case 90: // z
 				rotateLeft();
@@ -205,18 +225,44 @@ const App: React.FC = () => {
 		rotation
 	);
 
+	const nextCells = getCellsWithoutRotationOffset(
+		Tetrominoes[nextTetrominoType].rotationDatam,
+		[0, 0],
+		0
+	);
 	return (
-		<div className="App" tabIndex={0} ref={boardRef} onKeyDown={handleKeyPress}>
+		<S.Wrapper tabIndex={0} ref={boardRef} onKeyDown={handleKeyPress}>
 			<S.Board>
-				<ActiveTetromino
+				<TetrominoCells
 					cells={activeCells}
-					activeTetrominoType={activeTetrominoType}
+					tetrominoType={activeTetrominoType}
 				/>
 				<Terrain board={board} />
 			</S.Board>
+			<S.MetaColumn>
+				<S.Preview>
+					<TetrominoCells cells={nextCells} tetrominoType={nextTetrominoType} />
+				</S.Preview>
 
-			{dead && <div>You lose</div>}
-		</div>
+				<S.Actions>
+					<button disabled={isRunning || dead} onClick={start}>
+						Start
+					</button>
+					{dead && (
+						<>
+							<button onClick={restart}>Restart</button>
+							<div>You lose</div>
+						</>
+					)}
+				</S.Actions>
+				<S.Stats>
+					<S.StatRow>Level: {level}</S.StatRow>
+					<S.StatRow>High Score: {highscore}</S.StatRow>
+					<S.StatRow>Score: {score}</S.StatRow>
+					<S.StatRow>Rows cleared: {rowsCleared}</S.StatRow>
+				</S.Stats>
+			</S.MetaColumn>
+		</S.Wrapper>
 	);
 };
 
