@@ -17,7 +17,7 @@ const nonIOOffsets = [
 
 export const Tetrominoes: TetrominoesType = {
   I: {
-    color: 'red',
+    color: '#FF0000',
     rotationDatam: [
       {
         pos: getGridPos(0, 11, 12, 13, 14),
@@ -38,21 +38,21 @@ export const Tetrominoes: TetrominoesType = {
     ]
   },
   J: {
-    color: 'yellow',
+    color: '#FFFF00',
     rotationDatam: _.range(4).map(rot => ({
       pos: getGridPos(rot, 8, 11, 12, 13),
       offsets: nonIOOffsets[rot]
     }))
   },
   L: {
-    color: 'magenta',
+    color: '#FF00FF',
     rotationDatam: _.range(4).map(rot => ({
       pos: getGridPos(rot, 6, 11, 12, 13),
       offsets: nonIOOffsets[rot]
     }))
   },
   O: {
-    color: 'blue',
+    color: '#0000FF',
     rotationDatam: [
       {
         pos: getGridPos(0, 7, 8, 12, 13),
@@ -73,21 +73,21 @@ export const Tetrominoes: TetrominoesType = {
     ]
   },
   S: {
-    color: 'cyan',
+    color: '#00FFFF',
     rotationDatam: _.range(4).map(rot => ({
       pos: getGridPos(rot, 7, 8, 11, 12),
       offsets: nonIOOffsets[rot]
     }))
   },
   T: {
-    color: 'green',
+    color: '#008000',
     rotationDatam: _.range(4).map(rot => ({
       pos: getGridPos(rot, 7, 11, 12, 13),
       offsets: nonIOOffsets[rot]
     }))
   },
   Z: {
-    color: 'orange',
+    color: '#FFA500',
     rotationDatam: _.range(4).map(rot => ({
       pos: getGridPos(rot, 6, 7, 12, 13),
       offsets: nonIOOffsets[rot]
@@ -102,3 +102,23 @@ export const initialBoard: Board = Array(24)
       .fill(0)
       .map(col => null)
   );
+
+export function speed(level: number): number {
+  if (level < 0) return 9999;
+  if (level <= 9) {
+    return 48 - level * 5;
+  }
+  if (level <= 12) {
+    return 5;
+  }
+  if (level <= 15) {
+    return 4;
+  }
+  if (level <= 18) {
+    return 3;
+  }
+  if (level <= 28) {
+    return 2;
+  }
+  return 1;
+}

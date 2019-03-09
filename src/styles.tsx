@@ -1,4 +1,5 @@
 import styled from 'styled-components/macro';
+import { transparentize } from 'polished';
 import { Tetrominoes } from './staticData';
 import { Position, TetrominoType } from './types';
 
@@ -47,13 +48,16 @@ export const Board = styled.div`
 type CellProps = {
   cell: Position;
   backgroundColor: string;
+  transp?: boolean;
 };
 export const Cell = styled.div.attrs<CellProps>(p => ({
   style: {
-    backgroundColor: p.backgroundColor,
+    backgroundColor: p.transp
+      ? transparentize(0.8, p.backgroundColor)
+      : p.backgroundColor,
     gridRow: p.cell[0],
     gridColumn: p.cell[1]
   }
 }))<CellProps>`
-  border: 1px solid #444;
+  border: 1px solid ${p => (p.transp ? '#888' : '#444')};
 `;
